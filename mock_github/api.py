@@ -1,10 +1,11 @@
 import atexit
 import tempfile
-from typing import List
+from typing import List, Any
 
-from fastapi import FastAPI, UploadFile
+from fastapi import FastAPI, UploadFile, Request
 from pydantic import BaseModel
 from fastapi.staticfiles import StaticFiles
+import uvicorn
 
 app = FastAPI()
 
@@ -32,17 +33,6 @@ class Asset(BaseModel):
     updated_at: str = ""
 
 
-class ReleaseCreationModel(BaseModel):
-    tag_name: str
-    target_commitish: str = ""
-    name: str = ""
-    body: str = ""
-    draft: bool = False
-    prerelease: bool = False
-    discussion_category_name: str = ""
-    generate_release_notes: bool = False
-
-
 class ReleaseModel(BaseModel):
     assets_url: str = ""
     upload_url: str = ""
@@ -51,6 +41,7 @@ class ReleaseModel(BaseModel):
     created_at: str = ""
     published_at: str = ""
     draft: bool
+    body: str = ""
     id: int
     node_id: str = ""
     author: str = ""
@@ -63,18 +54,18 @@ class ReleaseModel(BaseModel):
     url: str
 
 
-class PullRequest:
+class PullRequest(BaseModel):
     number: int = 0
     html_url: str = ""
 
 
-def create_release_model(owner: str, repo: str, model: ReleaseCreationModel) -> ReleaseModel:
+def create_release_model(owner: str, repo: str, model: dict) -> ReleaseModel:
     global global_id
     id = global_id
     global_id += 1
     url = f"/repos/{owner}/{repo}/releases/{id}"
-    html_url = f"/{owner}/{repo}/releases/{model.tag_name}"
-    model = ReleaseModel(tag_name=model.tag_name, draft=model.draft, id=id, url=url, html_url=html_url, prerelease=model.prerelease, target_commitish=model.target_commitish, assets=[])
+    html_url = f"/{owner}/{repo}/releases/{model['tag_name']}"
+    model = ReleaseModel(tag_name=model['tag_name'], draft=model['draft'], id=id, url=url, html_url=html_url, prerelease=model['prerelease'], target_commitish=model['target_commitish'], assets=[])
     releases[model.id] = model
     return model
 
@@ -91,16 +82,21 @@ def list_releases(owner: str, repo: str) -> List[ReleaseModel]:
 
 
 @app.post("/repos/{owner}/{repo}/releases")
-def create_release(owner: str, repo: str, model: ReleaseCreationModel) -> ReleaseModel:
+async def create_release(request: Request) -> ReleaseModel:
     """https://docs.github.com/en/rest/releases/releases#create-a-release"""
-    return create_release_model(owner, repo, model)
+    data = await request.json()
+    info = request.path_params
+    return create_release_model(info['owner'], info['repo'], data)
 
 
 @app.patch("/repos/{owner}/{repo}/releases/{id}")
-def update_release(owner: str, repo: str, id: int) -> ReleaseModel:
+async def update_release(request: Request) -> ReleaseModel:
     """https://docs.github.com/en/rest/releases/releases#update-a-release"""
-    model = releases[id]
-    import pdb; pdb.set_trace()
+    data = await request.json()
+    params = request.path_params
+    model = releases[int(params['id'])]
+    for name, value in data.items():
+        setattr(model, name, value)
     return model
 
 
@@ -118,7 +114,7 @@ def upload_release_assets(owner: str, repo: str, release_id: int, name: str, upl
     model.assets.append(asset)
 
 
-@app.post("post/repos/{owner}/{repo}/pulls")
+@app.post("/repos/{owner}/{repo}/pulls")
 def create_pull(owner: str, repo: str) -> PullRequest:
     """https://docs.github.com/en/rest/pulls/pulls#create-a-pull-request"""
     return PullRequest()
@@ -129,3 +125,7 @@ def add_labels(owner: str, repo: str, issue_number: int) -> BaseModel:
     """https://docs.github.com/en/rest/issues/labels#add-labels-to-an-issue"""
     return BaseModel()
 
+
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8002, debug=True)
