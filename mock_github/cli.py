@@ -1,4 +1,4 @@
-"""CLI interface for project_name project.
+"""CLI interface for mock_github project.
 
 Be creative! do whatever you want!
 
@@ -12,7 +12,7 @@ Be creative! do whatever you want!
 def main():  # pragma: no cover
     """
     The main function executes on commands:
-    `python -m project_name` and `$ project_name `.
+    `python -m mock_github` and `$ mock_github `.
 
     This is your program's entry point.
 
