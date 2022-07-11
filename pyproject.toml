@@ -12,7 +12,7 @@ license = ""
 authors = [
     { name = "blink1073" },
 ]
-dependencies = ["ghapi", "fastapi"]
+dependencies = ["ghapi", "fastapi", "requests", "uvicorn[standard]", "python-multipart"]
 dynamic = [
     "version",
 ]
