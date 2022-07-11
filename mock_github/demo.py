@@ -10,6 +10,10 @@ auth = "hi"
 gh = GhApi(owner=owner, repo=repo_name, token=auth)
 print(list(gh.repos.list_releases()))
 
+here = os.path.dirname(os.path.abspath(__file__))
+files = [os.path.join(here, f) for f in os.listdir(here)]
+files = [f for f in files if not os.path.isdir(f)]
+
 release = gh.create_release(
         "v1.0.0",
         "main",
@@ -17,7 +21,7 @@ release = gh.create_release(
         "body",
         True,
         True,
-        files=[],
+        files=files,
 )
 
 print(release.html_url)
