@@ -110,11 +110,11 @@ async def upload_release_assets(owner: str, repo: str, release_id: int, request:
     asset_id = global_id
     global_id += 1
     name = request.query_params['name']
-    with open(f"{static_dir}/{id}", "wb") as fid:
+    with open(f"{static_dir.name}/{asset_id}", "wb") as fid:
         async for chunk in request.stream():
             fid.write(chunk)
     headers = request.headers
-    url = f"/static/{id}"
+    url = f"/static/{asset_id}"
     asset = Asset(id=asset_id, name=name, size=headers['content-length'], url=url, content_type=headers['content-type'])
     model.assets.append(asset)
 

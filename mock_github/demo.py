@@ -1,7 +1,8 @@
 import os
-os.environ['GH_HOST'] = "http://127.0.0.1:8000"
+os.environ['GH_HOST'] = base_url = "http://127.0.0.1:8000"
 
 from ghapi.core import GhApi
+import requests
 
 owner = "foo"
 repo_name = "bar"
@@ -37,6 +38,16 @@ release = gh.repos.update_release(
     release['prerelease']
 )
 assert release.draft == False
+
+for asset in release.assets:
+    url = base_url + asset.url
+    headers = dict(Authorization=f"token {auth}", Accept="application/octet-stream")
+    path = os.path.join(here, asset.name)
+    print(asset.name)
+    with requests.get(url, headers=headers, stream=True) as r:
+        r.raise_for_status()
+        for chunk in r.iter_content(chunk_size=8192):
+            pass
 
 
 pull = gh.pulls.create('title', 'head', 'base', 'body', True, False, None)
