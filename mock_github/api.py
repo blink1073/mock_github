@@ -112,6 +112,7 @@ async def upload_release_assets(owner: str, repo: str, release_id: int, request:
 
 @app.delete('/repos/{owner}/{repo}/releases/{release_id}')
 def delete_release(owner: str, repo: str, release_id: int) -> None:
+    """https://docs.github.com/en/rest/releases/releases#delete-a-release"""
     del releases[release_id]
 
 
