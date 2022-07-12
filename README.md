@@ -10,3 +10,8 @@ TODO: exercise all of these APIs using ghapi and requests.
 Once that is done we have a drop-in to replace our use of dry-run for GitHub
 interactions.
 Then we can actually test all of our actions.
+
+```bash
+uvicorn mock_github.api:app --reload
+python mock_github/demo.py
+````
