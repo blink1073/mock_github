@@ -1,22 +1,20 @@
 import atexit
 import os
 import tempfile
-from typing import List, Any
+import uuid
+from typing import List
 
-from fastapi import FastAPI, UploadFile, Request
+from fastapi import FastAPI, Request
 from pydantic import BaseModel
 from fastapi.staticfiles import StaticFiles
-import uvicorn
 
 app = FastAPI()
 
 static_dir = tempfile.TemporaryDirectory()
-os.makedirs(str(static_dir), exist_ok=True)
 atexit.register(static_dir.cleanup)
 app.mount("/static", StaticFiles(directory=static_dir.name), name="static")
 
-global_id = 0
-releases = {}
+releases: dict[int, "ReleaseModel"] = {}
 
 
 class Asset(BaseModel):
@@ -61,18 +59,6 @@ class PullRequest(BaseModel):
     html_url: str = ""
 
 
-def create_release_model(owner: str, repo: str, model: dict) -> ReleaseModel:
-    global global_id
-    id = global_id
-    global_id += 1
-    url = f"/repos/{owner}/{repo}/releases/{id}"
-    html_url = f"/{owner}/{repo}/releases/{model['tag_name']}"
-    upload_url = f"/repos/{owner}/{repo}/releases/{id}/assets"
-    model = ReleaseModel(tag_name=model['tag_name'], draft=model['draft'], id=id, url=url, html_url=html_url, prerelease=model['prerelease'], target_commitish=model['target_commitish'], assets=[], upload_url=upload_url)
-    releases[model.id] = model
-    return model
-
-
 @app.get("/")
 def read_root():
     return {"Hello": "World"}
@@ -87,16 +73,21 @@ def list_releases(owner: str, repo: str) -> List[ReleaseModel]:
 @app.post("/repos/{owner}/{repo}/releases")
 async def create_release(owner: str, repo: str, request: Request) -> ReleaseModel:
     """https://docs.github.com/en/rest/releases/releases#create-a-release"""
-    data = await request.json()
-    info = request.path_params
-    return create_release_model(owner, repo, data)
+    release_id = uuid.uuid4().int
+    model = await request.json()
+    url = f"/repos/{owner}/{repo}/releases/{release_id}"
+    html_url = f"/{owner}/{repo}/releases/{model['tag_name']}"
+    upload_url = f"/repos/{owner}/{repo}/releases/{release_id}/assets"
+    model = ReleaseModel(tag_name=model['tag_name'], draft=model['draft'], id=release_id, url=url, html_url=html_url, prerelease=model['prerelease'], target_commitish=model['target_commitish'], assets=[], upload_url=upload_url)
+    releases[model.id] = model
+    return model
 
 
-@app.patch("/repos/{owner}/{repo}/releases/{id}")
-async def update_release(owner: str, repo: str, id: int, request: Request) -> ReleaseModel:
+@app.patch("/repos/{owner}/{repo}/releases/{release_id}")
+async def update_release(owner: str, repo: str, release_id: int, request: Request) -> ReleaseModel:
     """https://docs.github.com/en/rest/releases/releases#update-a-release"""
     data = await request.json()
-    model = releases[id]
+    model = releases[release_id]
     for name, value in data.items():
         setattr(model, name, value)
     return model
@@ -105,10 +96,8 @@ async def update_release(owner: str, repo: str, id: int, request: Request) -> Re
 @app.post("/repos/{owner}/{repo}/releases/{release_id}/assets")
 async def upload_release_assets(owner: str, repo: str, release_id: int, request: Request) -> None:
     """https://docs.github.com/en/rest/releases/assets#upload-a-release-asset"""
-    global global_id
     model = releases[release_id]
-    asset_id = global_id
-    global_id += 1
+    asset_id = uuid.uuid4().int
     name = request.query_params['name']
     with open(f"{static_dir.name}/{asset_id}", "wb") as fid:
         async for chunk in request.stream():
@@ -129,8 +118,3 @@ def create_pull(owner: str, repo: str) -> PullRequest:
 def add_labels(owner: str, repo: str, issue_number: int) -> BaseModel:
     """https://docs.github.com/en/rest/issues/labels#add-labels-to-an-issue"""
     return BaseModel()
-
-
-
-if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8002, debug=True)
