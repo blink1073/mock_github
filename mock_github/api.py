@@ -1,5 +1,5 @@
 import atexit
-import os
+import datetime
 import tempfile
 import uuid
 from typing import List
@@ -38,7 +38,7 @@ class ReleaseModel(BaseModel):
     upload_url: str
     tarball_url: str = ""
     zipball_url: str = ""
-    created_at: str = ""
+    created_at: str
     published_at: str = ""
     draft: bool
     body: str = ""
@@ -78,7 +78,9 @@ async def create_release(owner: str, repo: str, request: Request) -> ReleaseMode
     url = f"/repos/{owner}/{repo}/releases/{release_id}"
     html_url = f"/{owner}/{repo}/releases/{model['tag_name']}"
     upload_url = f"/repos/{owner}/{repo}/releases/{release_id}/assets"
-    model = ReleaseModel(tag_name=model['tag_name'], draft=model['draft'], id=release_id, url=url, html_url=html_url, prerelease=model['prerelease'], target_commitish=model['target_commitish'], assets=[], upload_url=upload_url)
+    fmt_str =  r"%Y-%m-%dT%H:%M:%SZ"
+    created_at = datetime.datetime.utcnow().strftime(fmt_str)
+    model = ReleaseModel(tag_name=model['tag_name'], draft=model['draft'], id=release_id, url=url, html_url=html_url, prerelease=model['prerelease'], target_commitish=model['target_commitish'], assets=[], upload_url=upload_url, created_at=created_at)
     releases[model.id] = model
     return model
 
@@ -106,6 +108,11 @@ async def upload_release_assets(owner: str, repo: str, release_id: int, request:
     url = f"/static/{asset_id}"
     asset = Asset(id=asset_id, name=name, size=headers['content-length'], url=url, content_type=headers['content-type'])
     model.assets.append(asset)
+
+
+@app.delete('/repos/{owner}/{repo}/releases/{release_id}')
+def delete_release(owner: str, repo: str, release_id: int) -> None:
+    del releases[release_id]
 
 
 @app.post("/repos/{owner}/{repo}/pulls")

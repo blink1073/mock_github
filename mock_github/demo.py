@@ -49,6 +49,7 @@ for asset in release.assets:
         for chunk in r.iter_content(chunk_size=8192):
             pass
 
+gh.repos.delete_release(release.id)
 
 pull = gh.pulls.create('title', 'head', 'base', 'body', True, False, None)
 gh.issues.add_labels(pull.number, ["documentation"])
