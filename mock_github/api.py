@@ -5,8 +5,8 @@ import uuid
 from typing import List
 
 from fastapi import FastAPI, Request
-from pydantic import BaseModel
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 
 app = FastAPI()
 
@@ -14,7 +14,7 @@ static_dir = tempfile.TemporaryDirectory()
 atexit.register(static_dir.cleanup)
 app.mount("/static", StaticFiles(directory=static_dir.name), name="static")
 
-releases: dict[int, "ReleaseModel"] = {}
+releases: dict[int, "Release"] = {}
 
 
 class Asset(BaseModel):
@@ -33,7 +33,7 @@ class Asset(BaseModel):
     updated_at: str = ""
 
 
-class ReleaseModel(BaseModel):
+class Release(BaseModel):
     assets_url: str = ""
     upload_url: str
     tarball_url: str = ""
@@ -65,28 +65,28 @@ def read_root():
 
 
 @app.get("/repos/{owner}/{repo}/releases")
-def list_releases(owner: str, repo: str) -> List[ReleaseModel]:
+def list_releases(owner: str, repo: str) -> List[Release]:
     """https://docs.github.com/en/rest/releases/releases#list-releases"""
     return list(releases.values())
 
 
 @app.post("/repos/{owner}/{repo}/releases")
-async def create_release(owner: str, repo: str, request: Request) -> ReleaseModel:
+async def create_a_release(owner: str, repo: str, request: Request) -> Release:
     """https://docs.github.com/en/rest/releases/releases#create-a-release"""
     release_id = uuid.uuid4().int
-    model = await request.json()
+    data = await request.json()
     url = f"/repos/{owner}/{repo}/releases/{release_id}"
-    html_url = f"/{owner}/{repo}/releases/{model['tag_name']}"
+    html_url = f"/{owner}/{repo}/releases/{data['tag_name']}"
     upload_url = f"/repos/{owner}/{repo}/releases/{release_id}/assets"
     fmt_str =  r"%Y-%m-%dT%H:%M:%SZ"
     created_at = datetime.datetime.utcnow().strftime(fmt_str)
-    model = ReleaseModel(tag_name=model['tag_name'], draft=model['draft'], id=release_id, url=url, html_url=html_url, prerelease=model['prerelease'], target_commitish=model['target_commitish'], assets=[], upload_url=upload_url, created_at=created_at)
+    model = Release(id=release_id, url=url, html_url=html_url, assets=[], upload_url=upload_url, created_at=created_at, **data)
     releases[model.id] = model
     return model
 
 
 @app.patch("/repos/{owner}/{repo}/releases/{release_id}")
-async def update_release(owner: str, repo: str, release_id: int, request: Request) -> ReleaseModel:
+async def update_a_release(owner: str, repo: str, release_id: int, request: Request) -> Release:
     """https://docs.github.com/en/rest/releases/releases#update-a-release"""
     data = await request.json()
     model = releases[release_id]
@@ -96,7 +96,7 @@ async def update_release(owner: str, repo: str, release_id: int, request: Reques
 
 
 @app.post("/repos/{owner}/{repo}/releases/{release_id}/assets")
-async def upload_release_assets(owner: str, repo: str, release_id: int, request: Request) -> None:
+async def upload_a_release_asset(owner: str, repo: str, release_id: int, request: Request) -> None:
     """https://docs.github.com/en/rest/releases/assets#upload-a-release-asset"""
     model = releases[release_id]
     asset_id = uuid.uuid4().int
@@ -111,18 +111,18 @@ async def upload_release_assets(owner: str, repo: str, release_id: int, request:
 
 
 @app.delete('/repos/{owner}/{repo}/releases/{release_id}')
-def delete_release(owner: str, repo: str, release_id: int) -> None:
+def delete_a_release(owner: str, repo: str, release_id: int) -> None:
     """https://docs.github.com/en/rest/releases/releases#delete-a-release"""
     del releases[release_id]
 
 
 @app.post("/repos/{owner}/{repo}/pulls")
-def create_pull(owner: str, repo: str) -> PullRequest:
+def create_a_pull_request(owner: str, repo: str) -> PullRequest:
     """https://docs.github.com/en/rest/pulls/pulls#create-a-pull-request"""
     return PullRequest()
 
 
 @app.post("/repos/{owner}/{repo}/issues/{issue_number}/labels")
-def add_labels(owner: str, repo: str, issue_number: int) -> BaseModel:
+def add_labels_to_an_issue(owner: str, repo: str, issue_number: int) -> BaseModel:
     """https://docs.github.com/en/rest/issues/labels#add-labels-to-an-issue"""
     return BaseModel()
